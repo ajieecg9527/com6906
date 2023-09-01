@@ -1,6 +1,6 @@
 dataset:
-  train_set: CEC2.train.2
-  test_set: CEC2.test.2
+  train_set: CEC2.train.3
+  test_set: CEC2.test.3
 
 train_path:
   clarity_data_dir: E:/Sheffield/Courses/COM6906 Dissertation Project/Data/cpc2/clarity_CPC2_data_train

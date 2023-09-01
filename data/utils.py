@@ -7,6 +7,7 @@ import hashlib
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
 from clarity.utils.file_io import read_jsonl
 
@@ -37,7 +38,6 @@ def generate_records_for_measure(measure, score_file, records):
 
 def run_data_split(dataset, path, dev_percent):
     """Split train set into train set and dev set according to dev_percent"""
-
     data_split_dir = Path(path.exp_dir) / "data_split"
     data_split_dir.mkdir(parents=True, exist_ok=True)
     signal_train_json = data_split_dir / f"{dataset}.train.json"
@@ -58,3 +58,11 @@ def run_data_split(dataset, path, dev_percent):
         json.dump(signal_train_list, fp)
     with signal_dev_json.open("w", encoding="utf-8") as fp:
         json.dump(signal_dev_list, fp)
+
+
+def merge_csv_files(csv_files, new_csv_file):
+    """ Merge the csv files. """
+    merged_csv_file = pd.concat([pd.read_csv(csv_file).drop(["ID"], axis=1) for csv_file in csv_files])
+    IDs = [i for i in range(len(merged_csv_file))]
+    merged_csv_file.insert(loc=0, column="ID", value=IDs)
+    merged_csv_file.to_csv(new_csv_file, index=False, sep=",")

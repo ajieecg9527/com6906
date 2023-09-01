@@ -12,7 +12,7 @@ from tqdm import tqdm
 from clarity.utils.signal_processing import resample
 
 sys.path.append("../../")
-from data.utils import parse_cec2_signal_name
+from data.utils import parse_cec2_signal_name, merge_csv_files
 
 
 def run_signal_generation_train(dataset, path, target_sr):
@@ -55,6 +55,13 @@ def run_signal_generation_train(dataset, path, target_sr):
         record_dict=record_dict, split="dev", _type="msbg", target_sr=target_sr
     )
 
+    # Merge the csv files
+    target_dir = Path(path.exp_dir) / "cpc2_asr_data"
+    train_csv_files = [target_dir / f"{dataset}.train.msbg.csv", target_dir / f"{dataset}.train.ref.csv"]
+    dev_csv_files = [target_dir / f"{dataset}.dev.msbg.csv", target_dir / f"{dataset}.dev.ref.csv"]
+    merge_csv_files(train_csv_files, target_dir / f"{dataset}.train.csv")
+    merge_csv_files(dev_csv_files, target_dir / f"{dataset}.dev.csv")
+
 
 def run_signal_generation_test(dataset, path, target_sr):
     """ Genarate the MSBG signals for the test set. """
@@ -78,6 +85,11 @@ def run_signal_generation_test(dataset, path, target_sr):
         path=path, dataset=dataset, signal_list=signal_test_list,
         record_dict=record_dict, split="test", _type="msbg", target_sr=target_sr
     )
+
+    # Merge the csv files
+    target_dir = Path(path.exp_dir) / "cpc2_asr_data"
+    test_csv_files = [target_dir / f"{dataset}.test.msbg.csv", target_dir / f"{dataset}.test.ref.csv"]
+    merge_csv_files(test_csv_files, target_dir / f"{dataset}.test.csv")
 
 
 def run_signal_resampling_and_cutting(path, dataset, signal_list, record_dict, split, _type, target_sr):
@@ -114,5 +126,7 @@ def run_signal_resampling_and_cutting(path, dataset, signal_list, record_dict, s
         sf.write(target_signal, utt_16k[1 * target_sr:, :], target_sr)
         csv_lines.append([signal_name, str(duration), str(target_signal), listener_id, wrds])
 
-    df_lines = pd.DataFrame(csv_lines, columns=["ID", "duration", "signal", "listener_id", "wrd"])
+    df_lines = pd.DataFrame(csv_lines, columns=["signal_ID", "duration", "signal", "listener_id", "wrd"])
+    IDs = [i for i in range(len(df_lines))]
+    df_lines.insert(loc=0, column="ID", value=IDs)
     df_lines.to_csv(target_csv, index=False, sep=",")
