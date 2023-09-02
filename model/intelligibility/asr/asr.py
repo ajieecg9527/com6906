@@ -3,21 +3,18 @@ Recipe for training a Transformer ASR system with librispeech, from the SpeechBr
 LibriSpeech/ASR recipe. The SpeechBrain version used in this work is:
 https://github.com/speechbrain/speechbrain/tree/1eddf66eea01866d3cf9dfe61b00bb48d2062236
 """
-import os
 
 import sys
-import time
-from pathlib import Path
 
-import hydra
-from omegaconf import DictConfig
 import speechbrain as sb
 import torch
-from hyperpyyaml import load_hyperpyyaml
-from tqdm.contrib import tqdm
-from torch.utils.data import DataLoader
+from fastdtw import fastdtw
 from clarity.utils.file_io import read_jsonl
+from scipy.spatial.distance import cosine
 from speechbrain.utils.distributed import run_on_main
+
+sys.path.append("../../")
+from model.intelligibility.asr.decoder import S2STransformerBeamSearch
 
 
 def dataio_prepare(csv_path, haspi_file, tokenizer, bos_index, eos_index):
@@ -65,6 +62,59 @@ def dataio_prepare(csv_path, haspi_file, tokenizer, bos_index, eos_index):
     return dataset
 
 
+def dtw_similarity(x, y):
+    path = fastdtw(x.detach().cpu().numpy()[0], y.detach().cpu().numpy()[0], dist=cosine)[1]
+
+    x_, y_ = [], []
+    for step in path:
+        x_.append(x[:, step[0], :])
+        y_.append(y[:, step[1], :])
+    x_ = torch.stack(x_, dim=1)
+    y_ = torch.stack(y_, dim=1)
+    return torch.nn.functional.cosine_similarity(x_, y_, dim=-1)
+
+
+def feature2similarity(signal_msbg_features, signal_ref_features, if_dtw=False):
+
+    if if_dtw:
+        similarity = dtw_similarity(signal_msbg_features, signal_ref_features)
+        similarity = torch.max(torch.stack([torch.mean(similarity, dim=-1)], dim=-1), dim=-1)[0]
+    else:
+        max_len = torch.max(torch.LongTensor([signal_msbg_features.shape[1], signal_ref_features.shape[1]]))
+
+        padded_signal_msbg_features = torch.zeros([1, max_len, signal_msbg_features.shape[2]], dtype=torch.float32)
+        padded_signal_ref_features = torch.zeros([1, max_len, signal_ref_features.shape[2]], dtype=torch.float32)
+
+        padded_signal_msbg_features[:, : signal_msbg_features.shape[1], :] = signal_msbg_features
+        padded_signal_ref_features[:, : signal_ref_features.shape[1], :] = signal_ref_features
+
+        similarity = torch.nn.functional.cosine_similarity(padded_signal_msbg_features, padded_signal_ref_features, dim=-1)
+        similarity = torch.stack([similarity], dim=-1).max(dim=-1)[0]
+        similarity = torch.mean(similarity, dim=-1)
+
+    return similarity
+
+
+def compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer):
+    len_sig = torch.tensor([1], dtype=torch.float32)  # relative length
+    tokens_bos = torch.LongTensor([bos_index] + (tokenizer.encode_as_ids(wrd))).view(1, -1)
+
+    sig_ref = sig_msbg.replace("msbg", "ref")
+
+    signal_msbg = sb.dataio.dataio.read_audio(sig_msbg).reshape(1, -1)
+    signal_ref = sb.dataio.dataio.read_audio(sig_ref).reshape(1, -1)
+
+    signal_msbg_features = asr_model.generate_features(signal_msbg, len_sig, tokens_bos)
+    signal_ref_features = asr_model.generate_features(signal_ref, len_sig, tokens_bos)
+
+    enc_similarity = feature2similarity(signal_msbg_features[0], signal_ref_features[0], if_dtw=False)
+    dec_similarity = feature2similarity(signal_msbg_features[1], signal_ref_features[1], if_dtw=True)
+
+    # TODO: similarity from better
+
+    return enc_similarity[0].numpy(), dec_similarity[0].numpy()
+
+
 class ASR(sb.core.Brain):
     """ An inherited class of the ASR model speech.core.brain,
         where the abstract methods compute_forward() and compute objectives() must be implemented.
@@ -77,6 +127,7 @@ class ASR(sb.core.Brain):
         self.switched = None
         self.optimizer = None
         self.tokenizer = None
+        self.test_search = None
 
     def compute_forward(self, batch, stage):
         """ Forward pass from signals to word probabilities """
@@ -310,3 +361,60 @@ class ASR(sb.core.Brain):
             loss = self.compute_objectives(predictions, batch, stage=stage)
 
         return loss.detach()
+
+    def init_evaluation(self, max_key=None, min_key=None):
+        """perform checkpoint averege if needed"""
+        super().on_evaluate_start()
+
+        ckpts = self.checkpointer.find_checkpoints(max_key=max_key, min_key=min_key)
+        ckpt = sb.utils.checkpoints.average_checkpoints(
+            ckpts, recoverable_name="model", device=self.device
+        )
+        self.hparams.model.load_state_dict(ckpt, strict=True)
+        self.hparams.model.eval()
+
+        self.test_search = S2STransformerBeamSearch(
+            modules=[
+                self.hparams.Transformer,
+                self.hparams.seq_lin,
+                self.hparams.ctc_lin,
+            ],
+            bos_index=self.hparams.bos_index,
+            eos_index=self.hparams.eos_index,
+            blank_index=self.hparams.blank_index,
+            min_decode_ratio=self.hparams.min_decode_ratio,
+            max_decode_ratio=self.hparams.max_decode_ratio,
+            beam_size=self.hparams.test_beam_size,
+            ctc_weight=self.hparams.ctc_weight_decode,
+            lm_weight=self.hparams.lm_weight,
+            lm_modules=self.hparams.lm_model,
+            temperature=1,
+            temperature_lm=1,
+            topk=10,
+            using_eos_threshold=False,
+            length_normalization=True,
+        )
+
+    def generate_features(self, sigs, len_sigs, tokens_bos):
+        """Forward computations from the waveform batches to the output probs."""
+        # batch = batch.to(self.device)
+        if self.test_search is None:
+            raise ValueError("test_search is not initialized")
+
+        sigs, len_sigs, tokens_bos = (
+            sigs.to(self.device),
+            len_sigs.to(self.device),
+            tokens_bos.to(self.device),
+        )
+        with torch.no_grad():
+            features = self.hparams.compute_features(sigs)
+            current_epoch = self.hparams.epoch_counter.current
+            feats = self.hparams.normalize(features, len_sigs, epoch=current_epoch)
+
+            cnn_out = self.hparams.CNN(feats)
+            enc_out, _ = self.hparams.Transformer(
+                cnn_out, tokens_bos, len_sigs, pad_idx=self.hparams.pad_index
+            )
+            _, _, dec_out, _ = self.test_search(enc_out.detach(), len_sigs)
+
+        return enc_out.detach().cpu(), dec_out.unsqueeze(0).detach().cpu()

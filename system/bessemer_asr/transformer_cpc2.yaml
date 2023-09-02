@@ -43,7 +43,7 @@ ckpt_interval_minutes: 30 # save checkpoint every N min
 # The global batch size is computed as batch_size * n_gpus * gradient_accumulation.
 # Empirically, we found that this value should be >= 128.
 # Please, set your parameters accordingly.
-number_of_epochs: 15
+number_of_epochs: 20
 batch_size: 1
 ctc_weight: 0.3
 gradient_accumulation: 4
@@ -52,7 +52,7 @@ loss_reduction: 'batchmean'
 sorting: random
 
 # stages related parameters
-stage_one_epochs: 10
+stage_one_epochs: 15
 lr_adam: 1.0
 lr_sgd: 0.000025
 

@@ -66,3 +66,19 @@ def merge_csv_files(csv_files, new_csv_file):
     IDs = [i for i in range(len(merged_csv_file))]
     merged_csv_file.insert(loc=0, column="ID", value=IDs)
     merged_csv_file.to_csv(new_csv_file, index=False, sep=",")
+
+
+def load_pred_and_label(pred_json, label_json):
+    """ Load prediction and ground truth. """
+    with label_json.open("r", encoding="utf-8") as fp:
+        labels = json.load(fp)
+
+    label_dict = {label["signal"]: label["correctness"] for label in labels}  # TODO: Check KEY
+
+    with pred_json.open("r", encoding="utf-8") as fp:
+        pred_dict = json.load(fp)
+
+    prediction = [pred * 100.0 for pred in pred_dict.values()]
+    label = [label_dict[signal] for signal in pred_dict]
+
+    return np.array(prediction), np.array(label)

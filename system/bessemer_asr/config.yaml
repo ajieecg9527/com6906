@@ -26,6 +26,8 @@ MSBGEar: # hyperparameters for MSBG ear
   equiv_0db_spl: 100
   ahr: 20
 
+asr_config: transformer_cpc2.yaml  # path
+
 defaults:
   - _self_
   - override hydra/hydra_logging: disabled

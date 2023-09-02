@@ -1,4 +1,5 @@
 """Evaluate the predictions against the ground truth correctness values"""
+import sys
 import json
 import logging
 from pathlib import Path
@@ -9,40 +10,12 @@ import pandas as pd
 from omegaconf import DictConfig
 from scipy.stats import kendalltau, pearsonr
 
+sys.path.append("../../")
+from data.evaluator import compute_scores
+
 logger = logging.getLogger(__name__)
 
 
-def rmse_score(x: np.ndarray, y: np.ndarray) -> float:
-    """Compute the root mean squared error between two arrays"""
-    return np.sqrt(np.mean((x - y) ** 2))
-
-
-def ncc_score(x: np.ndarray, y: np.ndarray) -> float:
-    """Compute the normalized cross correlation between two arrays"""
-    return pearsonr(x, y)[0]
-
-
-def kt_score(x: np.ndarray, y: np.ndarray) -> float:
-    """Compute the Kendall's tau correlation between two arrays"""
-    return kendalltau(x, y)[0]
-
-
-def std_err(x: np.ndarray, y: np.ndarray) -> float:
-    """Compute the standard error between two arrays"""
-    return np.std(x - y) / np.sqrt(len(x))
-
-
-def compute_scores(predictions, labels) -> dict:
-    """Compute the scores for the predictions"""
-    return {
-        "RMSE": rmse_score(predictions, labels),
-        "Std": std_err(predictions, labels),
-        "NCC": ncc_score(predictions, labels),
-        "KT": kt_score(predictions, labels),
-    }
-
-
-# pylint: disable = no-value-for-parameter
 @hydra.main(config_path=".", config_name="config")
 def evaluate(cfg: DictConfig) -> None:
     """Evaluate the predictions against the ground truth correctness values"""
@@ -65,7 +38,7 @@ def evaluate(cfg: DictConfig) -> None:
     scores = compute_scores(df["predicted"], df["correctness"])
 
     results = Path(cfg.test_path.exp_dir) / f"{cfg.dataset.test_set}.evaluate.jsonl"
-    with open(results, "a", encoding="utf-8") as fp:
+    with open(results, "w", encoding="utf-8") as fp:
         fp.write(json.dumps(scores) + "\n")
 
     # Output the scores to the console

@@ -16,15 +16,17 @@ test_path:
   scene_dir: ${test_path.clarity_data_dir}/clarity_data/scenes/CEC2
   exp_dir: E:/Sheffield/Courses/COM6906 Dissertation Project/Data/cpc2/demo_asr
 
-dev_percent: 0.3 # amount of signals for dev set
-ref_sr: 32000 # sample rate of HA signals
-target_sr: 16000 # sample rate for resampling
+dev_percent: 0.3  # amount of signals for dev set
+ref_sr: 32000  # sample rate of HA signals
+target_sr: 16000  # sample rate for resampling
 
-MSBGEar: # hyperparameters for MSBG ear
+MSBGEar:  # hyperparameters for MSBG ear
   src_pos: ff
   sample_rate: 44100
   equiv_0db_spl: 100
   ahr: 20
+
+asr_config: transformer_cpc2.yaml  # path
 
 defaults:
   - _self_
