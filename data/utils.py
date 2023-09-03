@@ -73,7 +73,7 @@ def load_pred_and_label(pred_json, label_json):
     with label_json.open("r", encoding="utf-8") as fp:
         labels = json.load(fp)
 
-    label_dict = {label["signal"]: label["correctness"] for label in labels}  # TODO: Check KEY
+    label_dict = {label["signal"]: label["correctness"] for label in labels}
 
     with pred_json.open("r", encoding="utf-8") as fp:
         pred_dict = json.load(fp)

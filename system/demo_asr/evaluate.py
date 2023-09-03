@@ -19,10 +19,10 @@ def evaluate(cfg: DictConfig) -> None:
 
     # Load the encoder representation
     dev_prediction, dev_label = load_pred_and_label(Path(cfg.train_path.exp_dir) / f"dev_enc_similarity.json",
-                                                    Path(cfg.train_path.metadata_dir) / f"{cfg.dataset}.json")
+                                                    Path(cfg.train_path.metadata_dir) / f"{cfg.dataset.train_set}.json")
 
-    test_prediction, test_label = load_pred_and_label(Path(cfg.test_path.exp_dir) / f"dev_enc_similarity.json",
-                                                      Path(cfg.test_path.metadata_dir) / f"{cfg.dataset}.json")
+    test_prediction, test_label = load_pred_and_label(Path(cfg.test_path.exp_dir) / f"test_enc_similarity.json",
+                                                      Path(cfg.test_path.metadata_dir) / f"{cfg.dataset.test_set}.json")
 
     logger.info("Apply logistic fitting.")
     model = Logistic()
@@ -32,10 +32,10 @@ def evaluate(cfg: DictConfig) -> None:
 
     # Load the decoder representation
     dev_prediction, dev_label = load_pred_and_label(Path(cfg.train_path.exp_dir) / f"dev_dec_similarity.json",
-                                                    Path(cfg.train_path.metadata_dir) / f"{cfg.dataset}.json")
+                                                    Path(cfg.train_path.metadata_dir) / f"{cfg.dataset.train_set}.json")
 
-    test_prediction, test_label = load_pred_and_label(Path(cfg.test_path.exp_dir) / f"dev_dec_similarity.json",
-                                                      Path(cfg.test_path.metadata_dir) / f"{cfg.dataset}.json")
+    test_prediction, test_label = load_pred_and_label(Path(cfg.test_path.exp_dir) / f"test_dec_similarity.json",
+                                                      Path(cfg.test_path.metadata_dir) / f"{cfg.dataset.test_set}.json")
 
     logger.info("Apply logistic fitting.")
     model = Logistic()

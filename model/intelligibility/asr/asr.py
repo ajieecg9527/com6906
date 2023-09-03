@@ -95,22 +95,23 @@ def feature2similarity(signal_msbg_features, signal_ref_features, if_dtw=False):
     return similarity
 
 
-def compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer):
+def compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear=0):
     len_sig = torch.tensor([1], dtype=torch.float32)  # relative length
     tokens_bos = torch.LongTensor([bos_index] + (tokenizer.encode_as_ids(wrd))).view(1, -1)
 
     sig_ref = sig_msbg.replace("msbg", "ref")
 
-    signal_msbg = sb.dataio.dataio.read_audio(sig_msbg).reshape(1, -1)
-    signal_ref = sb.dataio.dataio.read_audio(sig_ref).reshape(1, -1)
+    # Monaural signal from better ear
+    signal_msbg = sb.dataio.dataio.read_audio(sig_msbg)
+    signal_msbg = signal_msbg[:, ear].view(1, -1)
+    signal_ref = sb.dataio.dataio.read_audio(sig_ref)
+    signal_ref = signal_ref[:, ear].view(1, -1)
 
     signal_msbg_features = asr_model.generate_features(signal_msbg, len_sig, tokens_bos)
     signal_ref_features = asr_model.generate_features(signal_ref, len_sig, tokens_bos)
 
     enc_similarity = feature2similarity(signal_msbg_features[0], signal_ref_features[0], if_dtw=False)
     dec_similarity = feature2similarity(signal_msbg_features[1], signal_ref_features[1], if_dtw=True)
-
-    # TODO: similarity from better
 
     return enc_similarity[0].numpy(), dec_similarity[0].numpy()
 

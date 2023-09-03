@@ -9,6 +9,7 @@ import hydra
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
 from omegaconf import DictConfig
+from clarity.utils.file_io import read_jsonl
 from speechbrain.utils.distributed import run_on_main
 from tqdm import tqdm
 
@@ -44,17 +45,27 @@ def infer(cfg: DictConfig) -> None:
     dev_msbg_csv = sb.dataio.dataio.load_data_csv(train_exp_dir / f"cpc2_asr_data/{cfg.dataset.train_set}.dev.msbg.csv")
     test_msbg_csv = sb.dataio.dataio.load_data_csv(test_exp_dir / f"cpc2_asr_data/{cfg.dataset.test_set}.test.msbg.csv")
 
+    # Load haspi scores
+    dev_haspi_file = Path(hparams["haspi_folder"]) / f"{cfg.dataset.train_set}.haspi.jsonl"
+    dev_haspi_records = read_jsonl(dev_haspi_file)
+    dev_ear_choices = {haspi_record["signal"]: haspi_record["ear"] for haspi_record in dev_haspi_records}
+
+    test_haspi_file = Path(hparams["haspi_folder"]) / f"{cfg.dataset.test_set}.haspi.jsonl"
+    test_haspi_records = read_jsonl(test_haspi_file)
+    test_ear_choices = {haspi_record["signal"]: haspi_record["ear"] for haspi_record in test_haspi_records}
+
     # Compute the similarity on the dev set
     dev_enc_similarity, dev_dec_similarity = {}, {}
     for i, record in tqdm(dev_msbg_csv.items()):
         sig_msbg, wrd = record["signal"], record["wrd"]
-        similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer)
+        ear = dev_ear_choices[record["signal_ID"]]
+        similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear)
         dev_enc_similarity[i] = similarity[0].tolist()
         dev_dec_similarity[i] = similarity[1].tolist()
 
         with (train_exp_dir / "dev_enc_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(dev_enc_similarity, fp)
-        with (test_exp_dir / "dev_dec_similarity.json").open("w", encoding="utf-8") as fp:
+        with (train_exp_dir / "dev_dec_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(dev_dec_similarity, fp)
 
     # Compute the similarity on the test set
@@ -62,11 +73,12 @@ def infer(cfg: DictConfig) -> None:
     test_dec_similarity = {}
     for i, record in tqdm(test_msbg_csv.items()):
         sig_msbg, wrd = record["signal"], record["wrd"]
-        similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer)
+        ear = test_ear_choices[record["signal_ID"]]
+        similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear)
         test_enc_similarity[i] = similarity[0].tolist()
         test_dec_similarity[i] = similarity[1].tolist()
 
-        with (train_exp_dir / "test_enc_similarity.json").open("w", encoding="utf-8") as fp:
+        with (test_exp_dir / "test_enc_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(test_enc_similarity, fp)
         with (test_exp_dir / "test_dec_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(test_dec_similarity, fp)
