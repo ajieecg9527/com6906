@@ -57,11 +57,11 @@ def infer(cfg: DictConfig) -> None:
     # Compute the similarity on the dev set
     dev_enc_similarity, dev_dec_similarity = {}, {}
     for i, record in tqdm(dev_msbg_csv.items()):
-        sig_msbg, wrd = record["signal"], record["wrd"]
-        ear = dev_ear_choices[record["signal_ID"]]
+        sig_msbg, wrd, sig_name = record["signal"], record["wrd"], record["signal_ID"]
+        ear = dev_ear_choices[sig_name]
         similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear)
-        dev_enc_similarity[i] = similarity[0].tolist()
-        dev_dec_similarity[i] = similarity[1].tolist()
+        dev_enc_similarity[sig_name] = similarity[0].tolist()
+        dev_dec_similarity[sig_name] = similarity[1].tolist()
 
         with (train_exp_dir / "dev_enc_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(dev_enc_similarity, fp)
@@ -72,11 +72,11 @@ def infer(cfg: DictConfig) -> None:
     test_enc_similarity, test_dec_similarity = {}, {}
     test_dec_similarity = {}
     for i, record in tqdm(test_msbg_csv.items()):
-        sig_msbg, wrd = record["signal"], record["wrd"]
-        ear = test_ear_choices[record["signal_ID"]]
+        sig_msbg, wrd, sig_name = record["signal"], record["wrd"], record["signal_ID"]
+        ear = dev_ear_choices[sig_name]
         similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear)
-        test_enc_similarity[i] = similarity[0].tolist()
-        test_dec_similarity[i] = similarity[1].tolist()
+        test_enc_similarity[sig_name] = similarity[0].tolist()
+        test_dec_similarity[sig_name] = similarity[1].tolist()
 
         with (test_exp_dir / "test_enc_similarity.json").open("w", encoding="utf-8") as fp:
             json.dump(test_enc_similarity, fp)
