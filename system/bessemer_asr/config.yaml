@@ -16,9 +16,10 @@ test_path:
   scene_dir: ${test_path.clarity_data_dir}/clarity_data/scenes/CEC2
   exp_dir: /fastdata/acq22jb/DP/Data/cpc2/bessemer_asr1
 
-dev_percent: 0.3 # amount of signals for dev set
-ref_sr: 32000 # sample rate of HA signals
-target_sr: 16000 # sample rate for resampling
+dev_percent: 0.1  # amount of signals for dev set
+test_percent: 0.1  # amount of signals for test set
+ref_sr: 32000  # sample rate of HA signals
+target_sr: 16000  # sample rate for resampling
 
 MSBGEar: # hyperparameters for MSBG ear
   src_pos: ff

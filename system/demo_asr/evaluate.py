@@ -21,7 +21,7 @@ def evaluate(cfg: DictConfig) -> None:
     """Evaluate the predictions against the ground truth correctness values"""
 
     # Load the intelligibility dataset records
-    dataset_filename = Path(cfg.test_path.metadata_dir) / f"{cfg.dataset.test_set}.json"
+    dataset_filename = Path(cfg.train_path.metadata_dir) / f"{cfg.dataset.train_set}.json"
     with open(dataset_filename, encoding="utf-8") as fp:
         records = json.load(fp)
     record_index = {record["signal"]: record for record in records}

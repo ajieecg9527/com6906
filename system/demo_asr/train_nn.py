@@ -48,19 +48,25 @@ def evaluate(cfg: DictConfig) -> None:
     train_df, test_df = train_df[labels], test_df[labels]
 
     # Load encoder similarities
+    with (Path(cfg.train_path.exp_dir) / f"train_enc_similarity.json").open("r", encoding="utf-8") as fp:
+        train_encoder_similarity = json.load(fp)
     with (Path(cfg.train_path.exp_dir) / f"dev_enc_similarity.json").open("r", encoding="utf-8") as fp:
         dev_encoder_similarity = json.load(fp)
-    with (Path(cfg.train_path.exp_dir) / f"test_enc_similarity.json").open("r", encoding="utf-8") as fp:
+    with (Path(cfg.test_path.exp_dir) / f"test_enc_similarity.json").open("r", encoding="utf-8") as fp:
         test_encoder_similarity = json.load(fp)
+    train_encoder_similarity.update(dev_encoder_similarity)  # merge
 
     # Load decoder similarities
+    with (Path(cfg.train_path.exp_dir) / f"train_dec_similarity.json").open("r", encoding="utf-8") as fp:
+        train_decoder_similarity = json.load(fp)
     with (Path(cfg.train_path.exp_dir) / f"dev_dec_similarity.json").open("r", encoding="utf-8") as fp:
         dev_decoder_similarity = json.load(fp)
-    with (Path(cfg.train_path.exp_dir) / f"test_dec_similarity.json").open("r", encoding="utf-8") as fp:
+    with (Path(cfg.test_path.exp_dir) / f"test_dec_similarity.json").open("r", encoding="utf-8") as fp:
         test_decoder_similarity = json.load(fp)
+    train_decoder_similarity.update(dev_decoder_similarity)  # merge
 
-    train_signal_list, test_signal_list = list(dev_encoder_similarity.keys()), list(test_encoder_similarity.keys())
-    train_df = train_df[train_df["signal"].isin(train_signal_list)]
+    train_signal_list, test_signal_list = list(train_encoder_similarity.keys()), list(test_encoder_similarity.keys())
+    # train_df = train_df[train_df["signal"].isin(train_signal_list)]
 
     # Add 2 more columns for similarities
     train_df["encoder_similarity"], train_df["decoder_similarity"] = 0, 0
@@ -73,12 +79,16 @@ def evaluate(cfg: DictConfig) -> None:
         test_df.loc[test_df["signal"] == signal, "decoder_similarity"] = test_decoder_similarity[signal]
 
     # Random split
-    dev_df = train_df.sample(frac=cfg.dev_percent, random_state=9527)
+    # Train : Dev : Test = 0.8 : 0.1 : 0.1
+    dev_df = train_df.sample(frac=0.2, random_state=9527)
     train_df = pd.concat([train_df, dev_df]).drop_duplicates(keep=False)
+    test_df = dev_df.sample(frac=0.5, random_state=9527)
+    dev_df = pd.concat([dev_df, test_df]).drop_duplicates(keep=False)
 
     # Redefine labels
     similarities = ["encoder_similarity", "decoder_similarity"]
     labels = labels[:2] + similarities
+    # labels = labels + similarities
 
     # Pandas -> Torch.Tensor
     train_set = torch.from_numpy(train_df[labels[1:]].astype("float32").values)
@@ -87,9 +97,10 @@ def evaluate(cfg: DictConfig) -> None:
 
     # Build a Feedforward Neural Network
     nn = FeedforwardNeuralNetwork(n_inputs=len(similarities), n_neurons=32)
+    # nn = FeedforwardNeuralNetwork(n_inputs=len(measures)+len(similarities), n_neurons=32)
 
     # Train
-    nn.fit(train_set=train_set, dev_set=dev_set, epochs=10, lr=0.00001, batch_size=1)
+    nn.fit(train_set=train_set, dev_set=dev_set, epochs=10, lr=0.000001, batch_size=1)
 
     # Test
     predictions = nn.predict(test_set=test_set)
