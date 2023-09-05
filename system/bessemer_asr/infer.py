@@ -73,7 +73,7 @@ def infer(cfg: DictConfig) -> None:
     test_dec_similarity = {}
     for i, record in tqdm(test_msbg_csv.items()):
         sig_msbg, wrd, sig_name = record["signal"], record["wrd"], record["signal_ID"]
-        ear = dev_ear_choices[sig_name]
+        ear = test_ear_choices[sig_name]
         similarity = compute_similarity(sig_msbg, wrd, asr_model, bos_index, tokenizer, ear)
         test_enc_similarity[sig_name] = similarity[0].tolist()
         test_dec_similarity[sig_name] = similarity[1].tolist()
