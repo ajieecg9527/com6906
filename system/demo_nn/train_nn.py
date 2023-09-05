@@ -48,8 +48,11 @@ def train_nn(cfg: DictConfig) -> None:
     train_df, test_df = train_df[labels], test_df[labels]
 
     # Random split
-    dev_df = train_df.sample(frac=cfg.dev_percent, random_state=9527)
+    # Train : Dev : Test = 0.8 : 0.1 : 0.1
+    dev_df = train_df.sample(frac=0.2, random_state=9527)
     train_df = pd.concat([train_df, dev_df]).drop_duplicates(keep=False)
+    test_df = dev_df.sample(frac=0.5, random_state=9527)
+    dev_df = pd.concat([dev_df, test_df]).drop_duplicates(keep=False)
 
     # Pandas -> Torch.Tensor
     train_set = torch.from_numpy(train_df[labels[1:]].astype("float32").values)
@@ -60,7 +63,7 @@ def train_nn(cfg: DictConfig) -> None:
     nn = FeedforwardNeuralNetwork(n_inputs=len(measures), n_neurons=32)
 
     # Train
-    nn.fit(train_set=train_set, dev_set=dev_set, epochs=10, lr=0.00001, batch_size=1)
+    nn.fit(train_set=train_set, dev_set=dev_set, epochs=10, lr=0.000001, batch_size=1)
 
     # Test
     predictions = nn.predict(test_set=test_set)

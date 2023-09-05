@@ -16,7 +16,8 @@ test_path:
   scene_dir: ${test_path.clarity_data_dir}/clarity_data/scenes/CEC2
   exp_dir: /fastdata/acq22jb/DP/Data/cpc2/bessemer_nn
 
-dev_percent: 0.3 # amount of signals for dev set
+dev_percent: 0.1  # amount of signals for dev set
+test_percent: 0.1  # amount of signals for test set
 
 defaults:
   - _self_

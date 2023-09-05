@@ -1,6 +1,6 @@
-train_set: CEC2.train.1
-test_set: CEC2.train.1
-haspi_folder: E:/Sheffield/Courses/COM6906 Dissertation Project/Data/cpc2/demo_nn
+train_set: CEC2.train.2
+test_set: CEC2.train.2
+haspi_folder: E:/Sheffield/Courses/COM6906 Dissertation Project/Data/cpc2/bessemer_nn
 
 # ############################################################################
 # Model: E2E ASR with Transformer
