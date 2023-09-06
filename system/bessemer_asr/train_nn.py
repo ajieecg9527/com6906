@@ -96,7 +96,7 @@ def evaluate(cfg: DictConfig) -> None:
     test_set = torch.from_numpy(test_df[labels[1:]].astype("float32").values)
 
     # Build a Feedforward Neural Network
-    nn = FeedforwardNeuralNetwork(n_inputs=len(similarities), n_neurons=16)
+    nn = FeedforwardNeuralNetwork(n_inputs=len(similarities), n_neurons=32)
     # nn = FeedforwardNeuralNetwork(n_inputs=len(measures)+len(similarities), n_neurons=32)
 
     # Train
