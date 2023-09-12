@@ -29,6 +29,7 @@ def evaluate(cfg: DictConfig) -> None:
     # Load the predictions
     predictions = Path(cfg.test_path.exp_dir) / f"{cfg.dataset.test_set}.predict.csv"
     df = pd.read_csv(predictions, names=["signal", "predicted"], header=0)
+    print(len(records), len(df))
 
     df["correctness"] = [record_index[signal]["correctness"] for signal in df.signal]
 

@@ -5,10 +5,8 @@ import logging
 from pathlib import Path
 
 import hydra
-import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
-from scipy.stats import kendalltau, pearsonr
 
 sys.path.append("../../")
 from data.evaluator import compute_scores
